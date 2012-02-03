@@ -10,18 +10,27 @@ PUPPETCA = '/usr/sbin/puppetca'
 
 def sign(csr_name):
     """Authorises the CSR for the passed host."""
-    return subprocess.check_output([PUPPETCA, '--sign', csr_name])
+    cmd = subprocess.Popen([PUPPETCA, '--sign', csr_name], stdout = subprocess.PIPE, stderr = subprocess.STDOUT)
+    out, err = cmd.communicate()
+    return out
 
 def list_csrs():
     """Returns a list of all outstanding CSRs."""
-    csrs = subprocess.check_output([PUPPETCA, '--list'])
-    csrs = csrs.split('\n')
+    cmd = subprocess.Popen([PUPPETCA, '--list'], stdout = subprocess.PIPE, stderr = subprocess.STDOUT)
+    out, err = cmd.communicate()
+    csrs = out.split('\n')
     return [r for r in csrs if r]
 
-def verify(csr_name, ec2, instances):
-    """Verify the host should be granted the CSR. Do this by checking the host is valid (and running) in EC2."""
-    instance_id = csr_name.split('.', 1)[0]
-    return (instance_id in instances and instances[instance_id].state == 'running')
+def verify(csr_name, tag, instances):
+    """Verify the host should be granted the CSR. Do this by checking the hostname matches the
+        specified tag for a valid and running EC2 instance."""
+    for instance in instances.itervalues():
+        if instance.state != 'running':
+            continue
+        if instance.tags.has_key(tag) and instance.tags[tag] == csr_name:
+            return True
+
+    return False
 
 if __name__ == '__main__':
     config = ConfigParser.ConfigParser()
@@ -43,7 +52,7 @@ if __name__ == '__main__':
                 instances[i.id] = i
             
             for csr in outstanding_csrs:
-                if verify(csr_name=csr, ec2=ec2, instances=instances):
+                if verify(csr, config.get('awa', 'tag'), instances):
                     sign(csr)
     
     sys.exit(0)
