@@ -52,7 +52,7 @@ if __name__ == '__main__':
                 instances[i.id] = i
             
             for csr in outstanding_csrs:
-                if verify(csr, config.get('awa', 'tag'), instances):
+                if verify(csr, config.get('aws', 'tag'), instances):
                     sign(csr)
     
     sys.exit(0)
