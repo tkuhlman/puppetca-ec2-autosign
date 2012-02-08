@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import ConfigParser
+import re
 import subprocess
 import sys
 
@@ -22,12 +23,16 @@ def list_csrs():
     return [r for r in csrs if r]
 
 def verify(csr_name, tag, instances):
-    """Verify the host should be granted the CSR. Do this by checking the hostname matches the
-        specified tag for a valid and running EC2 instance."""
+    """Verify the host should be granted the CSR. Do this by checking the hostname without the
+        date pattern matches the specified tag for a valid and running EC2 instance.
+        I am using hostnames with a date string appended so they are unique for puppet, the
+        tag does not have this date string.
+    """
+    host_name = re.sub('(^\D+\d)\d*(..*$)', r'\1\2', csr_name)
     for instance in instances.itervalues():
         if instance.state != 'running':
             continue
-        if instance.tags.has_key(tag) and instance.tags[tag] == csr_name:
+        if instance.tags.has_key(tag) and instance.tags[tag] == host_name:
             return True
 
     return False
